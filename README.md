@@ -1,1 +1,9 @@
-MediPhoto 홈 랜딩 페이지 시안 — 보기: https://goonnew.github.io/mediphoto-preview/
+# MediPhoto 홈 랜딩 페이지 시안
+
+우즈베키스탄 메디포토(치과 촬영 세트) 홈 화면의 HTML 시안입니다.
+
+- 보기: https://goonnew.github.io/mediphoto-preview/
+- 이미지와 영상은 회색 자리표시자입니다. 실제 사진·영상이 준비되면 교체합니다.
+- 오른쪽 위 **KO / UZ** 로 화면 문구를 한국어와 우즈벡어로 바꿉니다.
+- 아직 만들지 않은 화면으로 가는 링크는 누르면 어느 화면인지 알려 줍니다.
+- 원본과 와이어프레임은 비공개 저장소(UZ-MEDIPHOTO)에 있습니다. 이 저장소에는 시안 한 장만 둡니다.
