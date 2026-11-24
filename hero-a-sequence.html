@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시안 A · 실사 시퀀스</title>
+<!--
+  홈 ① 화면 시안 A — 실사 사진 시퀀스.
+  코드로 그리던 장면을 실제 제품 컷아웃으로 바꿨다. WebGL 을 쓰지 않는다.
+  스크롤 진행률로 사진 한 장을 고르고, 각도 사이는 크로스페이드로 잇는다.
+  사진: docs/prototype/assets/ 의 <이름>.jpg(사진) + <이름>-a.png(모양).
+  알파가 들어간 webp/avif 를 만들 도구가 이 컴퓨터에 없어서 두 장으로 나눠 보내고
+  브라우저에서 캔버스로 합친다. 7장 합계 928KB.
+-->
+<style>
+:root{--ink:#1a1a1a;--grey:#6e6e6e;--body:#333;--bg:#f5f5f5;--acc:#1B5E8C;--nav:44px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:"Pretendard","Apple SD Gothic Neo",-apple-system,"Segoe UI","Noto Sans KR",sans-serif;
+  color:var(--ink);background:#fff;letter-spacing:-.015em;word-break:keep-all;
+}
+.note{
+  position:fixed;top:0;left:0;right:0;z-index:90;background:var(--ink);color:#fff;
+  font-size:12px;padding:7px 16px;text-align:center;letter-spacing:0;
+}
+.note b{color:#7cc0f0}
+main{padding-top:30px}
+
+.hero{height:360vh;position:relative;background:var(--bg)}
+.pin{position:sticky;top:0;height:100vh;overflow:hidden}
+.shots{position:absolute;inset:0}
+.shots canvas{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(var(--s,1));
+  max-width:min(78vw,900px);max-height:68vh;opacity:0;will-change:opacity;
+}
+/* 각도마다 피사체 크기가 달라 눈높이를 맞춘다 */
+[data-k="kit-side"]{--s:.92}
+[data-k="kit-left"]{--s:1}
+[data-k="kit-front"]{--s:1.06}
+[data-k="full-front"]{--s:1.06}
+[data-k="full-back"]{--s:1}
+
+/* 전송 단계에 겹치는 Wi-Fi 파동 */
+.waves{position:absolute;left:50%;top:26%;transform:translateX(-50%);opacity:0;pointer-events:none}
+.waves i{
+  position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;
+  border:3px solid var(--acc);border-radius:50%;border-bottom-color:transparent;
+  border-left-color:transparent;border-right-color:transparent;
+  animation:ping 2.2s linear infinite;
+}
+.waves i:nth-child(2){animation-delay:.73s}
+.waves i:nth-child(3){animation-delay:1.46s}
+@keyframes ping{from{transform:scale(.4);opacity:.9}to{transform:scale(4.2);opacity:0}}
+
+.caps{position:absolute;left:0;right:0;bottom:7vh;text-align:center;padding:0 24px}
+.cap{position:absolute;left:0;right:0;opacity:0;transition:opacity .3s;padding:0 24px}
+.cap b{display:block;font-size:clamp(20px,2.6vw,30px);font-weight:600;letter-spacing:-.025em}
+.cap span{display:block;font-size:14px;color:var(--grey);margin-top:8px}
+.hud{
+  position:absolute;top:16px;left:16px;font-size:11px;color:#8a8a8a;letter-spacing:0;
+}
+.bar{position:absolute;left:0;bottom:0;height:2px;background:var(--acc);width:0}
+
+.copy{
+  position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:0 24px 20vh;text-align:center;
+  opacity:0;pointer-events:none;transform-origin:50% 55%;
+}
+.eyebrow{font-size:21px;font-weight:600;color:var(--grey)}
+h1{font-size:clamp(40px,5.4vw,64px);font-weight:600;letter-spacing:-.03em;margin-top:28px}
+.sub{font-size:clamp(17px,1.9vw,26px);color:var(--body);margin-top:14px}
+.pills{display:flex;gap:16px;justify-content:center;margin-top:30px;flex-wrap:wrap}
+.pill{
+  border-radius:999px;padding:11px 22px;font-size:15px;border:1px solid var(--ink);
+  background:var(--ink);color:#fff;text-decoration:none;
+}
+.pill.ghost{background:transparent;color:var(--ink)}
+.after{height:50vh;display:grid;place-items:center;color:var(--grey);font-size:14px}
+@media (max-width:767px){
+  .hero{height:320vh}
+  .shots canvas{max-width:86vw;max-height:52vh}
+  .cap b{font-size:20px}
+  .copy{padding:0 20px 18vh}
+}
+</style>
+</head>
+<body>
+<p class="note">시안 A · <b>실사 사진 시퀀스</b> — 실제 제품 컷아웃 7장을 스크롤에 맞춰 넘긴다. WebGL 없음.</p>
+<main>
+<section class="hero" id="hero">
+  <div class="pin">
+    <div class="shots" id="shots"
+         aria-label="디퓨저 라이트와 전송 단말기를 장착한 Canon EOS R10 을 여러 각도에서 본 사진" role="img">
+      <canvas data-k="kit-side"></canvas>
+      <canvas data-k="kit-left"></canvas>
+      <canvas data-k="kit-front"></canvas>
+      <canvas data-k="full-front"></canvas>
+      <canvas data-k="full-back"></canvas>
+    </div>
+    <div class="waves" id="waves"><i></i><i></i><i></i></div>
+
+    <div class="caps" id="caps">
+      <div class="cap" data-from="0"   data-to=".22"><b>Canon EOS R10</b><span>치과 촬영에 맞춘 미러리스 바디와 매크로 렌즈</span></div>
+      <div class="cap" data-from=".22" data-to=".44"><b>메디포토 디퓨저 라이트</b><span>구강 안쪽까지 그림자 없이 고르게</span></div>
+      <div class="cap" data-from=".44" data-to=".62"><b>정면에서 보면</b><span>링 형태라 치아 표면에 반사가 생기지 않습니다</span></div>
+      <div class="cap" data-from=".62" data-to=".78"><b>메디포토 전송 단말기</b><span>카메라 위에 올려 끼우면 끝</span></div>
+      <div class="cap" data-from=".78" data-to="1.01"><b>찍는 즉시 PC로</b><span>SD카드를 빼지 않습니다</span></div>
+    </div>
+    <div class="hud" id="hud">사진 1 / 5</div>
+    <div class="bar" id="bar"></div>
+
+    <div class="copy" id="copy">
+      <p class="eyebrow">MediPhoto</p>
+      <h1>촬영만 하세요.</h1>
+      <p class="sub">사진은 PC로 자동 전송됩니다.</p>
+      <div class="pills">
+        <a class="pill" href="#">더 알아보기</a>
+        <a class="pill ghost" href="#">텔레그램 문의</a>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="after">여기부터 다음 섹션</div>
+</main>
+
+<script>
+/* 사진(JPEG) 과 모양(PNG) 을 캔버스에서 합쳐 배경이 없는 그림으로 만든다.
+   알파가 들어간 webp/avif 를 만들 도구가 없어 택한 방법이다.
+   파일을 한 장으로 받을 수 있게 되면 이 함수를 지우고 <img> 로 돌리면 된다. */
+function loadImg(src){
+  return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+}
+function cutout(cv, name){
+  return Promise.all([loadImg(`assets/${name}.jpg`), loadImg(`assets/${name}-a.png`)]).then(([ph, mask]) => {
+    const w = ph.naturalWidth, h = ph.naturalHeight;
+    cv.width = w; cv.height = h;
+    const c = cv.getContext("2d");
+    c.drawImage(ph, 0, 0);
+    const pic = c.getImageData(0, 0, w, h);
+
+    // 모양 그림은 회색조라 알파가 아니라 밝기에 모양이 들어 있다. 밝기를 알파로 옮긴다.
+    const tmp = document.createElement("canvas");
+    tmp.width = w; tmp.height = h;
+    const tc = tmp.getContext("2d");
+    tc.drawImage(mask, 0, 0, w, h);
+    const m = tc.getImageData(0, 0, w, h).data;
+    for (let i = 0, n = w * h; i < n; i++) pic.data[i*4 + 3] = m[i*4];
+    c.putImageData(pic, 0, 0);
+
+    cv.style.aspectRatio = `${w} / ${h}`;
+    return cv;
+  });
+}
+
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const hero = document.getElementById("hero"),
+      imgs = [...document.querySelectorAll("#shots canvas")],
+      caps = [...document.querySelectorAll(".cap")],
+      waves = document.getElementById("waves"),
+      hud = document.getElementById("hud"),
+      bar = document.getElementById("bar"),
+      copy = document.getElementById("copy");
+
+// 사진 다섯 장을 스크롤 구간에 고르게 놓고, 사이는 겹쳐 넘긴다.
+const SEQ_END = .74, OUT = .84;
+const N = imgs.length;
+
+function onScroll(){
+  const r = hero.getBoundingClientRect(), span = hero.offsetHeight - innerHeight;
+  const p = REDUCED ? 1 : Math.min(1, Math.max(0, -r.top / span));
+
+  // 1) 사진 넘기기 — 이웃한 두 장이 겹치는 구간에서 서로 자리를 바꾼다
+  const q = Math.min(1, p / SEQ_END);
+  const t = q * (N - 1);
+  imgs.forEach((im, i) => {
+    const d = Math.abs(t - i);
+    im.style.opacity = String(Math.max(0, 1 - d));     // 1칸 안에서만 보인다
+  });
+  hud.textContent = `사진 ${Math.min(N, Math.round(t) + 1)} / ${N}`;
+  bar.style.width = (q * 100) + "%";
+
+  // Wi-Fi 파동은 마지막(뒷면) 사진에서만
+  waves.style.opacity = String(Math.max(0, Math.min(1, (t - (N - 1.6)) / .6)));
+
+  // 2) 문구
+  caps.forEach(c => c.style.opacity = (q >= +c.dataset.from && q < +c.dataset.to) ? "1" : "0");
+
+  // 3) 사진이 끝나면 물러나고, 그다음 문구가 뜬다
+  const o = Math.min(1, Math.max(0, (p - SEQ_END) / (OUT - SEQ_END)));
+  const oe = o * o * (3 - 2 * o);
+  document.getElementById("shots").style.opacity = String(1 - oe);
+  waves.style.visibility = oe === 1 ? "hidden" : "visible";
+  document.getElementById("caps").style.opacity = String(1 - oe);
+  hud.style.opacity = bar.style.opacity = String(1 - oe);
+
+  const rr = Math.min(1, Math.max(0, (p - OUT) / (1 - OUT)));
+  const e = rr * rr * (3 - 2 * rr);
+  copy.style.opacity = String(e);
+  copy.style.transform = `translateY(${(1 - e) * 26}px) scale(${.94 + e * .06})`;
+  copy.style.pointerEvents = e > .6 ? "auto" : "none";
+}
+let ticking = false;
+addEventListener("scroll", () => {
+  if (!ticking){ ticking = true; requestAnimationFrame(() => { ticking = false; onScroll(); }); }
+}, {passive:true});
+addEventListener("resize", onScroll);
+addEventListener("load", onScroll);
+Promise.all(imgs.map(cv => cutout(cv, cv.dataset.k))).then(onScroll);
+onScroll();
+</script>
+</body>
+</html>
